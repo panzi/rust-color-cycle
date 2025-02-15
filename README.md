@@ -41,7 +41,7 @@ Options:
   -o, --osd
           Enable On Screen Display.
 
-          Displas messages when changing things like blend mode or FPS.
+          Displays messages when changing things like blend mode or FPS.
 
 
       --help-hotkeys
