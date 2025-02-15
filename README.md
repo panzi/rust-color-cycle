@@ -22,7 +22,7 @@ by Joseph Huckaby uses.
 Usage: color-cycle [OPTIONS] <PATH>...
 
 Arguments:
-  <PATH>...
+  <PATHS>...
           Path to a Canvas Cycle JSON file
 
 Options:
@@ -31,7 +31,7 @@ Options:
 
           Attempt to render in this number of frames per second. Actual FPS might be lower.
 
-          [default: 25]
+          [default: 60]
 
   -b, --blend
           Enable blend mode.

@@ -211,7 +211,7 @@ pub struct Args {
     /// 
     /// Attempt to render in this number of frames per second.
     /// Actual FPS might be lower.
-    #[arg(short, long, default_value_t = 25, value_parser = clap::value_parser!(u32).range(1..MAX_FPS as i64))]
+    #[arg(short, long, default_value_t = 60, value_parser = clap::value_parser!(u32).range(1..MAX_FPS as i64))]
     pub fps: u32,
 
     /// Enable blend mode.
