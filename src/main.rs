@@ -222,7 +222,7 @@ pub struct Args {
 
     /// Enable On Screen Display.
     /// 
-    /// Displas messages when changing things like blend mode or FPS.{n}
+    /// Displays messages when changing things like blend mode or FPS.{n}
     #[arg(short, long, default_value_t = false)]
     pub osd: bool,
 
