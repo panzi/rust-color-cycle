@@ -557,8 +557,8 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> st
                     show_message!("{hours}:{mins:02}");
                 }
                 Some(b's') => {
+                    state.time_speed = 1;
                     if state.current_time.is_some() {
-                        state.time_speed = 1;
                         state.current_time = None;
                         time_of_day = get_time_of_day_msec(state.time_speed);
                     }
