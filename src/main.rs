@@ -251,7 +251,7 @@ fn main() {
 Hotkeys
 =======
 B              Toggle blend mode
-Q or Esccape   Quit program
+Q or Escape    Quit program
 O              Toggle On Screen Display of message
 N              Open next file
 P              Open previous file
