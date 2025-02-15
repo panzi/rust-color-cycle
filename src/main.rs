@@ -252,7 +252,7 @@ Hotkeys
 =======
 B              Toggle blend mode
 Q or Escape    Quit program
-O              Toggle On Screen Display of message
+O              Toggle On Screen Display
 N              Open next file
 P              Open previous file
 1 to 9         Open file by index
