@@ -259,7 +259,7 @@ P              Open previous file
 0              Open last file
 +              Increase frames per second by 1
 -              Decrease frames per second by 1
-F              Toogle fast forward ({FAST_FORWARD_SPEED}x speed).
+W              Toogle fast forward ({FAST_FORWARD_SPEED}x speed).
 A              Go back in time by 5 minutes.
 D              Go forward in time by 5 minutes.
 S              Go to current time and continue normal progression.
@@ -565,7 +565,7 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> st
                     let (hours, mins) = get_hours_mins(time_of_day);
                     show_message!("{hours}:{mins:02}");
                 }
-                Some(b'f') => {
+                Some(b'w') => {
                     if state.time_speed == 1 {
                         state.time_speed = FAST_FORWARD_SPEED;
                         state.current_time = None;
@@ -818,7 +818,6 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> st
             let mut next_time_of_day = 0;
 
             // TODO: binary search?
-            // XXX: what's with the white pixels?
             let mut found = false;
             for event in living_world.timeline() {
                 prev_time_of_day = next_time_of_day;

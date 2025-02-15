@@ -66,7 +66,7 @@ Options:
 | `0` | Open last file |
 | `+` | Increase frames per second by 1 |
 | `-` | Decrease frames per second by 1 |
-| `F` | Toogle fast forward (10000x speed). |
+| `W` | Toogle fast forward (10000x speed). |
 | `A` | Go back in time by 5 minutes. |
 | `D` | Go forward in time by 5 minutes. |
 | `S` | Go to current time and continue normal progression. |
