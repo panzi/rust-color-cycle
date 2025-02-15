@@ -328,15 +328,25 @@ enum Action {
 fn get_time_of_day_msec(time_speed: u64) -> u64 {
     #[cfg(not(windows))]
     unsafe {
-        let mut tod = MaybeUninit::<libc::timeval>::zeroed();
-        if libc::gettimeofday(tod.as_mut_ptr(), std::ptr::null_mut()) != 0 {
+        let mut tod = MaybeUninit::<libc::timespec>::zeroed();
+        if libc::clock_gettime(libc::CLOCK_REALTIME, tod.as_mut_ptr()) != 0 {
             return 0;
         }
         let tod = tod.assume_init_ref();
-        (
-            tod.tv_sec as u64 * 1000 * time_speed +
-            tod.tv_usec as u64 * time_speed / 1000
-        ) % DAY_DURATION
+        let mut tm = MaybeUninit::<libc::tm>::zeroed();
+        if libc::localtime_r(&tod.tv_sec, tm.as_mut_ptr()).is_null() {
+            return 0;
+        }
+        let tm = tm.assume_init_ref();
+        let mut now = Duration::new(tod.tv_sec as u64, tod.tv_nsec as u32);
+
+        if tm.tm_gmtoff > 0 {
+            now += Duration::from_secs(tm.tm_gmtoff as u64);
+        } else {
+            now -= Duration::from_secs((-tm.tm_gmtoff) as u64);
+        }
+
+        ((now.as_millis() * time_speed as u128) % DAY_DURATION as u128) as u64
     }
 
     #[cfg(windows)]
@@ -558,10 +568,8 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> st
                 }
                 Some(b's') => {
                     state.time_speed = 1;
-                    if state.current_time.is_some() {
-                        state.current_time = None;
-                        time_of_day = get_time_of_day_msec(state.time_speed);
-                    }
+                    state.current_time = None;
+                    time_of_day = get_time_of_day_msec(state.time_speed);
                     let (hours, mins) = get_hours_mins(time_of_day);
                     show_message!("{hours}:{mins:02}");
                 }
