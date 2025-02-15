@@ -581,6 +581,7 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> st
                         show_message!("Fast Forward: ON");
                     } else {
                         state.time_speed = 1;
+                        state.current_time = Some(time_of_day);
                         show_message!("Fast Forward: OFF");
                     }
                 }
