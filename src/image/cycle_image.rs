@@ -20,17 +20,24 @@ use super::IndexedImage;
 
 #[derive(Debug, Clone)]
 pub struct CycleImage {
+    filename: Option<String>,
     indexed_image: IndexedImage,
     cycles: Box<[Cycle]>,
 }
 
 impl CycleImage {
     #[inline]
-    pub fn new(indexed_image: IndexedImage, cycles: Box<[Cycle]>) -> Self {
+    pub fn new(filename: Option<String>, indexed_image: IndexedImage, cycles: Box<[Cycle]>) -> Self {
         Self {
+            filename,
             indexed_image,
             cycles,
         }
+    }
+
+    #[inline]
+    pub fn filename(&self) -> Option<&str> {
+        self.filename.as_deref()
     }
 
     #[inline]
@@ -76,6 +83,7 @@ impl CycleImage {
     #[inline]
     pub fn get_rect(&self, x: u32, y: u32, width: u32, height: u32) -> Self {
         Self {
+            filename: None,
             indexed_image: self.indexed_image.get_rect(x, y, width, height),
             cycles: self.cycles.clone(),
         }

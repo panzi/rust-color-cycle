@@ -20,6 +20,7 @@ use super::CycleImage;
 
 #[derive(Debug, Clone)]
 pub struct LivingWorld {
+    name: Option<String>,
     base: CycleImage,
     palettes: Box<[CycleImage]>,
     timeline: Box<[TimedEvent]>,
@@ -27,17 +28,23 @@ pub struct LivingWorld {
 
 impl LivingWorld {
     #[inline]
-    pub fn new(base: CycleImage, palettes: Box<[CycleImage]>, timeline: Box<[TimedEvent]>) -> Self {
-        Self { base, palettes, timeline }
+    pub fn new(name: Option<String>, base: CycleImage, palettes: Box<[CycleImage]>, timeline: Box<[TimedEvent]>) -> Self {
+        Self { name, base, palettes, timeline }
     }
 
     #[inline]
     pub fn only_base(base: CycleImage) -> Self {
         Self {
+            name: None,
             base,
             palettes: Box::new([]),
             timeline: Box::new([]),
         }
+    }
+
+    #[inline]
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
     }
 
     #[inline]
@@ -64,7 +71,12 @@ impl LivingWorld {
 impl From<CycleImage> for LivingWorld {
     #[inline]
     fn from(value: CycleImage) -> Self {
-        LivingWorld::only_base(value)
+        LivingWorld::new(
+            value.filename().map(|value| value.to_owned()),
+            value,
+            Box::new([]),
+            Box::new([]),
+        )
     }
 }
 

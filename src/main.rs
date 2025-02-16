@@ -422,8 +422,13 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> st
     let mut old_term_width = term_width;
     let mut old_term_height = term_height;
 
+    let name = living_world.name();
     let filename = path.file_name().map(|f| f.to_string_lossy()).unwrap_or_else(|| path.to_string_lossy());
-    let mut message: String = format!(" {filename} ");
+    let mut message: String = if let Some(name) = name {
+        format!(" {name} ({filename}) ")
+    } else {
+        format!(" {filename} ")
+    };
     let mut message_shown = args.osd;
     let message_display_duration = Duration::from_secs(3);
 

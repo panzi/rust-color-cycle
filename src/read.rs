@@ -63,6 +63,7 @@ impl<'de> Visitor<'de> for CycleImageVisitor {
         let mut palette = None;
         let mut cycles = None;
         let mut image = None;
+        let mut filename = None;
 
         while let Some(key) = map.next_key::<String>()? {
             match key.as_str() {
@@ -80,6 +81,9 @@ impl<'de> Visitor<'de> for CycleImageVisitor {
                 }
                 "pixels" => {
                     image = Some(map.next_value()?);
+                }
+                "filename" => {
+                    filename = Some(map.next_value()?);
                 }
                 _ => {
                     map.next_value::<IgnoredAny>()?;
@@ -111,7 +115,7 @@ impl<'de> Visitor<'de> for CycleImageVisitor {
             return Err(Error::custom("image buffer is too small for given width/height"));
         };
 
-        Ok(CycleImage::new(indexed_image, cycles))
+        Ok(CycleImage::new(filename, indexed_image, cycles))
     }
 }
 
@@ -199,6 +203,7 @@ impl<'de> Visitor<'de> for LivingWorldVisitor {
         let mut palette = None;
         let mut cycles = None;
         let mut image = None;
+        let mut filename = None;
         let mut format: Option<FormatInfo> = None;
         let mut data: Option<MagratheaWorldData> = None;
         let mut base: Option<CycleImage> = None;
@@ -237,6 +242,9 @@ impl<'de> Visitor<'de> for LivingWorldVisitor {
                 "timeline" => {
                     named_timeline = Some(map.next_value()?);
                 }
+                "filename" => {
+                    filename = Some(map.next_value()?);
+                }
                 _ => {
                     map.next_value::<IgnoredAny>()?;
                 }
@@ -267,7 +275,11 @@ impl<'de> Visitor<'de> for LivingWorldVisitor {
                 }
             }
 
-            return Ok(LivingWorld::new(base, palettes.into_boxed_slice(), timeline.into_boxed_slice()));
+            return Ok(LivingWorld::new(
+                base.filename().map(|name| name.to_owned()),
+                base,
+                palettes.into_boxed_slice(), timeline.into_boxed_slice()),
+            );
         }
 
         if let Some(format) = format {
@@ -287,7 +299,7 @@ impl<'de> Visitor<'de> for LivingWorldVisitor {
                 return Err(Error::custom("image buffer is too small for given width/height"));
             };
 
-            return Ok(CycleImage::new(indexed_image, palette_info.cycles).into());
+            return Ok(CycleImage::new(Some(data.name), indexed_image, palette_info.cycles).into());
         }
 
         let Some(width) = width else {
@@ -314,7 +326,7 @@ impl<'de> Visitor<'de> for LivingWorldVisitor {
             return Err(Error::custom("image buffer is too small for given width/height"));
         };
 
-        Ok(CycleImage::new(indexed_image, cycles).into())
+        Ok(CycleImage::new(filename, indexed_image, cycles).into())
     }
 }
 
