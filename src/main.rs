@@ -19,13 +19,16 @@ pub mod color;
 pub mod image;
 pub mod palette;
 pub mod read;
+pub mod ilbm;
+pub mod bitvec;
+pub mod error;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::fs::File;
-use std::io::{BufReader, Read, StdinLock, StdoutLock, Write};
+use std::io::{BufReader, Read, Seek, StdinLock, StdoutLock, Write};
 
 #[cfg(not(windows))]
 use std::mem::MaybeUninit;
@@ -45,14 +48,14 @@ const FAST_FORWARD_SPEED: u64 = 10_000;
 pub struct NBTerm;
 
 impl NBTerm {
-    pub fn new() -> std::io::Result<Self> {
+    pub fn new() -> Result<Self, error::Error> {
         #[cfg(not(windows))]
         unsafe {
             let mut ttystate = MaybeUninit::<libc::termios>::zeroed();
             let res = libc::tcgetattr(libc::STDIN_FILENO, ttystate.as_mut_ptr());
             if res == -1 {
                 let err = std::io::Error::last_os_error();
-                return Err(err);
+                return Err(err.into());
             }
 
             let ttystate = ttystate.assume_init_mut();
@@ -67,7 +70,7 @@ impl NBTerm {
             let res = libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, ttystate);
             if res == -1 {
                 let err = std::io::Error::last_os_error();
-                return Err(err);
+                return Err(err.into());
             }
         }
 
@@ -226,6 +229,15 @@ pub struct Args {
     #[arg(short, long, default_value_t = false)]
     pub osd: bool,
 
+    /// Swap direction of 8 pixel columns.
+    /// 
+    /// The current implementation of ILBM files is broken for some files and
+    /// swaps the pixels in columns like that. I haven't figured out how do load
+    /// those files correctly (how to detect its such a file), but this option
+    /// can be used to fix the display of those files.
+    #[arg(long, default_value_t = false)]
+    pub ilbm_column_swap: bool,
+
     /// Show list of hotkeys.
     #[arg(long, default_value_t = false)]
     pub help_hotkeys: bool,
@@ -370,14 +382,29 @@ fn get_hours_mins(time_of_day: u64) -> (u32, u32) {
     (hours, mins - hours * 60)
 }
 
-fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> std::io::Result<Action> {
+fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Result<Action, error::Error> {
     let path = &args.paths[file_index];
     let file = File::open(path)?;
-    let reader = BufReader::new(file);
+    let mut reader = BufReader::new(file);
 
-    let living_world: LivingWorld = serde_json::from_reader(reader)?;
+    let living_world: LivingWorld = match ilbm::ILBM::read(&mut reader) {
+        Ok(mut ilbm) => {
+            if args.ilbm_column_swap {
+                ilbm.column_swap();
+            }
+            let image: CycleImage = ilbm.try_into()?;
+            image.into()
+        }
+        Err(err) => {
+            reader.seek(std::io::SeekFrom::Start(0))?;
+            if err.kind() != ilbm::ErrorKind::UnsupportedFileFormat {
+                return Err(err.into());
+            }
+            serde_json::from_reader(&mut reader)?
+        }
+    };
     // TODO: implement full worlds demo support
-    let cycle_image: &CycleImage = living_world.base();
+    let cycle_image = living_world.base();
     let mut blended_palette = cycle_image.palette().clone();
     let mut cycled_palette1 = blended_palette.clone();
     let mut cycled_palette2 = blended_palette.clone();

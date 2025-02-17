@@ -33,6 +33,13 @@ impl Display for Palette {
     }
 }
 
+impl Default for Palette {
+    #[inline]
+    fn default() -> Self {
+        Self(Box::new([Rgb::default(); 256]))
+    }
+}
+
 impl Index<u8> for Palette {
     type Output = Rgb;
 
@@ -53,6 +60,22 @@ impl From<[Rgb; 256]> for Palette {
     #[inline]
     fn from(value: [Rgb; 256]) -> Self {
         Self(value.into())
+    }
+}
+
+impl From<&[Rgb; 256]> for Palette {
+    #[inline]
+    fn from(value: &[Rgb; 256]) -> Self {
+        Self(Box::new(value.clone()))
+    }
+}
+
+impl From<&[Rgb]> for Palette {
+    #[inline]
+    fn from(value: &[Rgb]) -> Self {
+        let mut colors = Box::new([Rgb::default(); 256]);
+        colors[0..value.len().min(256)].copy_from_slice(value);
+        Self(colors)
     }
 }
 
