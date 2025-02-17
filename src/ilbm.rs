@@ -236,6 +236,7 @@ impl Display for FileType {
 pub struct ILBM {
     file_type: FileType,
     header: BMHD,
+    camg: Option<CAMG>,
     body: Option<BODY>,
     cmaps: Vec<CMAP>,
     crngs: Vec<CRNG>,
@@ -253,6 +254,11 @@ impl ILBM {
     #[inline]
     pub fn header(&self) -> &BMHD {
         &self.header
+    }
+
+    #[inline]
+    pub fn camg(&self) -> Option<&CAMG> {
+        self.camg.as_ref()
     }
 
     #[inline]
@@ -340,6 +346,7 @@ impl ILBM {
         let mut cmaps = Vec::new();
         let mut crngs = Vec::new();
         let mut ccrts = Vec::new();
+        let mut camg = None;
 
         let mut pos = 4;
         while pos < main_chunk_len {
@@ -367,6 +374,9 @@ impl ILBM {
                 b"CCRT" => {
                     ccrts.push(CCRT::read(reader, chunk_len)?);
                 }
+                b"CAMG" => {
+                    camg = Some(CAMG::read(reader, chunk_len)?);
+                }
                 _ => {
                     // skip unknown chunk
                     // eprintln!("skip unsupported chunk: {:?} {:?}", &fourcc, String::from_utf8_lossy(&fourcc));
@@ -391,6 +401,7 @@ impl ILBM {
         Ok(Self {
             file_type,
             header,
+            camg,
             body,
             cmaps,
             crngs,
@@ -645,6 +656,38 @@ impl CMAP {
 
         Ok(Self {
             colors
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct CAMG {
+    viewport_mode: u32
+}
+
+impl CAMG {
+    pub const SIZE: u32 = 4;
+
+    #[inline]
+    pub fn viewport_mode(&self) -> u32 {
+        self.viewport_mode
+    }
+
+    pub fn read<R>(reader: &mut R, chunk_len: u32) -> Result<Self>
+    where R: Read + Seek {
+        if chunk_len < Self::SIZE {
+            return Err(Error::new(ErrorKind::BrokenFile,
+                format!("truncated CAMG chunk: {} < {}", chunk_len, Self::SIZE)));
+        }
+
+        let viewport_mode = read_u32be(reader)?;
+
+        if chunk_len > Self::SIZE {
+            reader.seek_relative((chunk_len - Self::SIZE).into())?;
+        }
+
+        Ok(Self {
+            viewport_mode
         })
     }
 }
