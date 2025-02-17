@@ -19,7 +19,7 @@ by Joseph Huckaby uses.
 ## Usage
 
 ```
-Usage: color-cycle [OPTIONS] <PATH>...
+Usage: color-cycle [OPTIONS] <PATHS>...
 
 Arguments:
   <PATHS>...
@@ -43,6 +43,14 @@ Options:
 
           Displays messages when changing things like blend mode or FPS.
 
+
+      --ilbm-column-swap
+          Swap direction of 8 pixel columns.
+
+          The current implementation of ILBM files is broken for some files and swaps the
+          pixels in columns like that. I haven't figured out how do load those files
+          correctly (how to detect its such a file), but this option can be used to fix the
+          display of those files.
 
       --help-hotkeys
           Show list of hotkeys
