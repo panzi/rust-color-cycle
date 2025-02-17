@@ -396,10 +396,10 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
             image.into()
         }
         Err(err) => {
-            reader.seek(std::io::SeekFrom::Start(0))?;
             if err.kind() != ilbm::ErrorKind::UnsupportedFileFormat {
                 return Err(err.into());
             }
+            reader.seek(std::io::SeekFrom::Start(0))?;
             serde_json::from_reader(&mut reader)?
         }
     };
