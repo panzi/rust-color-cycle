@@ -66,6 +66,11 @@ impl LivingWorld {
     pub fn into_base(self) -> CycleImage {
         self.base
     }
+
+    #[inline]
+    pub fn column_swap(&mut self) {
+        self.base.column_swap();
+    }
 }
 
 impl From<CycleImage> for LivingWorld {

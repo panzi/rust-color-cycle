@@ -97,8 +97,8 @@ impl NBTerm {
 //            }
 //        }
 
-        // CSI ?  7 l     No Auto-Wrap Mode (DECAWM), VT100.
         // CSI ? 25 l     Hide cursor (DECTCEM), VT220
+        // CSI ?  7 l     No Auto-Wrap Mode (DECAWM), VT100.
         // CSI 2 J        Clear entire screen
         print!("\x1B[?25l\x1B[?7l\x1B[2J");
 
@@ -136,8 +136,8 @@ impl Drop for NBTerm {
 //        }
 
         // CSI 0 m        Reset or normal, all attributes become turned off
-        // CSI ?  7 h     Auto-Wrap Mode (DECAWM), VT100
         // CSI ? 25 h     Show cursor (DECTCEM), VT220
+        // CSI ?  7 h     Auto-Wrap Mode (DECAWM), VT100
         println!("\x1B[0m\x1B[?25h\x1B[?7h");
     }
 }
@@ -275,6 +275,9 @@ W              Toogle fast forward ({FAST_FORWARD_SPEED}x speed).
 A              Go back in time by 5 minutes.
 D              Go forward in time by 5 minutes.
 S              Go to current time and continue normal progression.
+I              Reverse pixels in columns of 8.
+               This is a hack fix for images that appear to be
+               broken like that.
 Cursor Up      Move view-port up by 1 pixel
 Cursor Down    Move view-port down by 1 pixel
 Cursor Left    Move view-port left by 1 pixel
@@ -387,7 +390,7 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
 
-    let living_world: LivingWorld = match ilbm::ILBM::read(&mut reader) {
+    let mut living_world: LivingWorld = match ilbm::ILBM::read(&mut reader) {
         Ok(mut ilbm) => {
             if args.ilbm_column_swap {
                 ilbm.column_swap();
@@ -617,6 +620,10 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                         show_message!("Fast Forward: OFF");
                     }
                 }
+                Some(b'i') => {
+                    living_world.column_swap();
+                    viewport.get_rect_from(x, y, term_width, term_height, living_world.base());
+                }
                 Some(0x1b) => {
                     match nb_read_byte(&mut state.stdin)? {
                         None => return Ok(Action::Quit),
@@ -813,7 +820,7 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
         let viewport_row = viewport_y / 2 + 1;
         let viewport_column = viewport_x + 1;
         if old_x != x || old_y != y || old_term_width != term_width || old_term_height != term_height {
-            viewport.get_rect_from(x, y, term_width, term_height, &cycle_image);
+            viewport.get_rect_from(x, y, term_width, term_height, living_world.base());
             frame = RgbImage::new(viewport.width(), viewport.height());
 
             if old_term_width != term_width || old_term_height != term_height {
@@ -889,7 +896,7 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
 
             viewport.indexed_image().apply_with_palette(&mut frame, &blended_palette);
         } else {
-            cycled_palette1.apply_cycles_from(&blended_palette, cycle_image.cycles(), blend_cycle, args.blend);
+            cycled_palette1.apply_cycles_from(&blended_palette, living_world.base().cycles(), blend_cycle, args.blend);
             viewport.indexed_image().apply_with_palette(&mut frame, &cycled_palette1);
         }
 

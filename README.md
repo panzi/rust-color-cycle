@@ -79,6 +79,7 @@ Options:
 | `A` | Go back in time by 5 minutes. |
 | `D` | Go forward in time by 5 minutes. |
 | `S` | Go to current time and continue normal progression. |
+| `I` | Reverse pixels in columns of 8.<br>This is a hack fix for images that appear to be broken like that. |
 | `Cursor Up` | Move view-port up by 1 pixel |
 | `Cursor Down` | Move view-port down by 1 pixel |
 | `Cursor Left` | Move view-port left by 1 pixel |

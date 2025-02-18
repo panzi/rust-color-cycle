@@ -181,6 +181,23 @@ impl IndexedImage {
         self.height = height;
         self.data = data;
     }
+
+    pub fn column_swap(&mut self) {
+        let columns = (self.width / 8) as usize;
+        for y in 0..self.height {
+            let y_offset = y as usize * self.width as usize;
+            for col in 0..columns {
+                let index = y_offset + col * 8;
+                self.data[index..index + 8].reverse();
+            }
+
+            let index = columns * 8;
+            let rem = self.width as usize - index;
+            if rem > 0 {
+                self.data[index..index + rem].reverse();
+            }
+        }
+    }
 }
 
 impl From<IndexedImage> for RgbImage {

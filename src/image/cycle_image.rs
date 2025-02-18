@@ -98,4 +98,9 @@ impl CycleImage {
     pub fn resize(&mut self, width: u32, height: u32, index: u8) {
         self.indexed_image.resize(width, height, index);
     }
+
+    #[inline]
+    pub fn column_swap(&mut self) {
+        self.indexed_image.column_swap();
+    }
 }
