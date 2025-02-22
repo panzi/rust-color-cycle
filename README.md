@@ -91,6 +91,9 @@ Options:
 
 Other things I made that render Uinocde characters to the terminal:
 
+- [SDL Color Cylce Viewer](https://github.com/panzi/rust-color-cycle-sdl)
+  (Rust): The same tool as this, but displays the images in a window using
+  [SDL](https://www.libsdl.org/).
 - [Progress Pride Bar](https://github.com/panzi/progress-pride-bar) (Rust): A
   progress bar for the terminal that looks like the progress pride flag.
 - [Term Flags](https://github.com/panzi/python-term-flags) (Python): A primitive
