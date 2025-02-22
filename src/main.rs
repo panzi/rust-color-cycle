@@ -34,11 +34,12 @@ use std::io::{BufReader, Read, Seek, StdinLock, StdoutLock, Write};
 use std::mem::MaybeUninit;
 
 use clap::Parser;
-use image::{CycleImage, LivingWorld, RgbImage};
+use image::{CycleImage, IndexedImage, LivingWorld, RgbImage};
 use image_to_ansi::{image_to_ansi_into, simple_image_to_ansi_into};
 
 #[cfg(not(windows))]
 use libc;
+use palette::Palette;
 
 const MAX_FPS: u32 = 10_000;
 const TIME_STEP: u64 = 60 * 5 * 1000;
@@ -385,25 +386,68 @@ fn get_hours_mins(time_of_day: u64) -> (u32, u32) {
     (hours, mins - hours * 60)
 }
 
+const MESSAGE_DISPLAY_DURATION: Duration = Duration::from_secs(3);
+const ERROR_MESSAGE_DISPLAY_DURATION: Duration = Duration::from_secs(1000 * 365 * 24 * 60 * 60);
+
 fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Result<Action, error::Error> {
     let path = &args.paths[file_index];
     let file = File::open(path)?;
     let mut reader = BufReader::new(file);
 
-    let mut living_world: LivingWorld = match ilbm::ILBM::read(&mut reader) {
-        Ok(mut ilbm) => {
-            if args.ilbm_column_swap {
-                ilbm.column_swap();
+    let living_world: Result<LivingWorld, error::Error> = match ilbm::ILBM::read(&mut reader) {
+        Ok(ilbm) => {
+            let res: Result<CycleImage, _> = ilbm.try_into();
+            match res {
+                Ok(image) => Ok(image.into()),
+                Err(err) => Err(err.into())
             }
-            let image: CycleImage = ilbm.try_into()?;
-            image.into()
         }
         Err(err) => {
             if err.kind() != ilbm::ErrorKind::UnsupportedFileFormat {
-                return Err(err.into());
+                Err(err.into())
+            } else if let Err(err) = reader.seek(std::io::SeekFrom::Start(0)) {
+                Err(err.into())
+            } else {
+                match serde_json::from_reader(&mut reader) {
+                    Ok(image) => Ok(image),
+                    Err(err) => Err(err.into())
+                }
             }
-            reader.seek(std::io::SeekFrom::Start(0))?;
-            serde_json::from_reader(&mut reader)?
+        }
+    };
+    drop(reader);
+
+    let filename = path.file_name().map(|f| f.to_string_lossy()).unwrap_or_else(|| path.to_string_lossy());
+    let mut message = String::new();
+    let mut message_end_ts = Instant::now();
+    let mut living_world = match living_world {
+        Ok(living_world) => {
+            use std::fmt::Write;
+
+            if living_world.base().width() == 0 || living_world.base().height() == 0 {
+                message_end_ts += ERROR_MESSAGE_DISPLAY_DURATION;
+                let _ = write!(message, " {filename}: image of size {} x {} ",
+                    living_world.base().width(),
+                    living_world.base().height());
+                CycleImage::new(None, IndexedImage::new(80, 25, Palette::default()), Box::new([])).into()
+            } else {
+                if args.osd {
+                    if let Some(name) = living_world.name() {
+                        let _ = write!(message, " {name} ({filename}) ");
+                    } else {
+                        let _ = write!(message, " {filename} ");
+                    }
+                    message_end_ts += MESSAGE_DISPLAY_DURATION
+                }
+
+                living_world
+            }
+        },
+        Err(err) => {
+            use std::fmt::Write;
+            message_end_ts += ERROR_MESSAGE_DISPLAY_DURATION;
+            let _ = write!(message, " {filename}: {err} ");
+            CycleImage::new(None, IndexedImage::new(80, 25, Palette::default()), Box::new([])).into()
         }
     };
     // TODO: implement full worlds demo support
@@ -452,19 +496,11 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
     let mut old_term_width = term_width;
     let mut old_term_height = term_height;
 
-    let name = living_world.name();
-    let filename = path.file_name().map(|f| f.to_string_lossy()).unwrap_or_else(|| path.to_string_lossy());
-    let mut message: String = if let Some(name) = name {
-        format!(" {name} ({filename}) ")
-    } else {
-        format!(" {filename} ")
-    };
     let mut message_shown = args.osd;
-    let message_display_duration = Duration::from_secs(3);
 
     let loop_start_ts = Instant::now();
     let mut message_end_ts = if args.osd {
-        loop_start_ts + message_display_duration
+        loop_start_ts + MESSAGE_DISPLAY_DURATION
     } else {
         loop_start_ts
     };
@@ -510,7 +546,7 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
         macro_rules! show_message {
             ($($args:expr),+) => {
                 if args.osd {
-                    message_end_ts = frame_start_ts + message_display_duration;
+                    message_end_ts = frame_start_ts + MESSAGE_DISPLAY_DURATION;
                     message.clear();
                     use std::fmt::Write;
                     message.push_str(" ");

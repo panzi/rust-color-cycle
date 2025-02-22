@@ -12,7 +12,8 @@ I'll add that at some later time).
 This viewer reads [Living Worlds Maker](https://magrathea.onrender.com/)
 files (only the background layer) or JSON files similar to what the
 [Canvas Cycle](https://experiments.withgoogle.com/canvas-cycle) demo
-by Joseph Huckaby uses.
+by Joseph Huckaby uses. It can also directly read binary
+[ILBM](https://en.wikipedia.org/wiki/ILBM) files with `CRNG` chunks.
 
 [Short Demo Video](https://www.youtube.com/watch?v=QMQ93uL1Fhk)
 
@@ -42,15 +43,6 @@ Options:
           Enable On Screen Display.
 
           Displays messages when changing things like blend mode or FPS.
-
-
-      --ilbm-column-swap
-          Swap direction of 8 pixel columns.
-
-          The current implementation of ILBM files is broken for some files and swaps the
-          pixels in columns like that. I haven't figured out how do load those files
-          correctly (how to detect its such a file), but this option can be used to fix the
-          display of those files.
 
       --help-hotkeys
           Show list of hotkeys

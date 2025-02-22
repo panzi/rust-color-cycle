@@ -102,11 +102,12 @@ pub struct BMHD {
     num_planes: u8,
     mask: u8,
     compression: u8,
+    flags: u8,
     trans_color: u16,
     x_aspect: u8,
     y_aspect: u8,
     page_width: i16,
-    page_heigt: i16,
+    page_heigth: i16,
 }
 
 
@@ -149,6 +150,11 @@ impl BMHD {
     }
 
     #[inline]
+    pub fn flags(&self) -> u8 {
+        self.flags
+    }
+
+    #[inline]
     pub fn trans_color(&self) -> u16 {
         self.trans_color
     }
@@ -169,8 +175,8 @@ impl BMHD {
     }
 
     #[inline]
-    pub fn page_heigt(&self) -> i16 {
-        self.page_heigt
+    pub fn page_heigth(&self) -> i16 {
+        self.page_heigth
     }
 
     pub fn read<R>(reader: &mut R, chunk_len: u32) -> Result<Self>
@@ -187,12 +193,12 @@ impl BMHD {
         let num_planes = read_u8(reader)?;
         let mask = read_u8(reader)?;
         let compression = read_u8(reader)?;
-        let _pad1 = read_u8(reader)?;
+        let flags = read_u8(reader)?;
         let trans_color = read_u16be(reader)?;
         let x_aspect = read_u8(reader)?;
         let y_aspect = read_u8(reader)?;
         let page_width = read_i16be(reader)?;
-        let page_heigt = read_i16be(reader)?;
+        let page_heigth = read_i16be(reader)?;
 
         if chunk_len > Self::SIZE {
             // eprintln!("{} unknown bytes in header", (chunk_len - Self::SIZE));
@@ -207,11 +213,12 @@ impl BMHD {
             num_planes,
             mask,
             compression,
+            flags,
             trans_color,
             x_aspect,
             y_aspect,
             page_width,
-            page_heigt,
+            page_heigth,
         })
     }
 }
@@ -348,6 +355,7 @@ impl ILBM {
         let mut ccrts = Vec::new();
         let mut camg = None;
 
+        // eprintln!("type: {file_type}");
         let mut pos = 4;
         while pos < main_chunk_len {
             reader.read_exact(&mut fourcc)?;
@@ -357,6 +365,7 @@ impl ILBM {
             match &fourcc {
                 b"BMHD" => {
                     header = Some(BMHD::read(reader, chunk_len)?);
+                    // eprintln!("{:?}", header.as_ref().unwrap());
                 }
                 b"BODY" => {
                     let Some(header) = &header else {
@@ -376,6 +385,7 @@ impl ILBM {
                 }
                 b"CAMG" => {
                     camg = Some(CAMG::read(reader, chunk_len)?);
+                    // eprintln!("{:?}", camg.as_ref().unwrap());
                 }
                 _ => {
                     // skip unknown chunk
@@ -387,7 +397,7 @@ impl ILBM {
             if chunk_len & 1 != 0 {
                 // Chunks are always padded to an even number of bytes.
                 // This padding byte is not included in the chunk size.
-                let _pad = read_u8(reader)?;
+                let _ = read_u8(reader)?;
                 pos += 1;
             }
 
@@ -484,7 +494,7 @@ impl BODY {
                         let mut value = 0u8;
                         for plane_index in 0..num_planes {
                             let byte_index = plane_len * plane_index + byte_offset;
-                            let bit = (line[byte_index] >> bit_offset) & 1;
+                            let bit = (line[byte_index] >> (7 - bit_offset)) & 1;
                             value |= bit << plane_index;
                         }
                         pixels.push(value);
@@ -573,6 +583,8 @@ impl BODY {
                             if next_pos > line_len {
                                 // count = line_len - pos;
                                 // next_pos = line_len;
+                                //eprintln!("broken BODY compression, more data than fits into row: {} > {}", next_pos, line_len);
+                                //break;
                                 return Err(Error::new(ErrorKind::BrokenFile,
                                     format!("broken BODY compression, more data than fits into row: {} > {}", next_pos, line_len)));
                             }
@@ -588,6 +600,8 @@ impl BODY {
                             if next_pos > line_len {
                                 // count = line_len - pos;
                                 // next_pos = line_len;
+                                //eprintln!("broken BODY compression, more data than fits into row: {} > {}", next_pos, line_len);
+                                //break;
                                 return Err(Error::new(ErrorKind::BrokenFile,
                                     format!("broken BODY compression, more data than fits into row: {} > {}", next_pos, line_len)));
                             }
@@ -595,7 +609,8 @@ impl BODY {
                             pos = next_pos;
                         } else {
                             // eprintln!("pos: {pos:3}, cmd: {cmd:3} == 128");
-                            break;
+                            // break;
+                            // some sources says 128 is EOF, other say its NOP
                         }
                         // eprintln!("pos: {pos:3}, read_len: {read_len:3}");
                         assert!(pos <= line_len);
@@ -611,6 +626,117 @@ impl BODY {
                 }
 
                 if read_len < chunk_len as usize {
+                    // eprintln!("skipping {} byte(s) at end of body", (chunk_len as usize - read_len));
+                    reader.seek_relative((chunk_len as usize - read_len) as i64)?;
+                }
+            }
+            2 => {
+                // VDAT compression
+                // TODO: https://www.atari-wiki.com/index.php?title=IFF_file_format
+                let width  = header.width()  as usize;
+                let height = header.height() as usize;
+
+                pixels.resize(width * height, 0);
+
+                let mut fourcc = [0u8; 4];
+                let mut read_len = 0usize;
+                let mut buf = Vec::new();
+                let mut decompr = Vec::with_capacity((header.width() as usize * header.height() as usize + 7) / 8);
+
+
+                for plane_index in 0..num_planes {
+                    reader.read_exact(&mut fourcc)?;
+                    read_len += 4;
+
+                    if fourcc != *b"VDAT" {
+                        return Err(Error::new(
+                            ErrorKind::BrokenFile,
+                            format!("expected \"VDAT\" chunk but got {:?} {:?}",
+                                String::from_utf8_lossy(&fourcc), &fourcc)
+                        ));
+                    }
+
+                    let sub_chunk_len = read_u32be(reader)?;
+                    read_len += 4;
+                    read_len += sub_chunk_len as usize;
+                    if read_len > chunk_len as usize {
+                        return Err(Error::new(
+                            ErrorKind::BrokenFile,
+                            format!("truncated compressed BODY chunk {} < {}", chunk_len, read_len)
+                        ));
+                    }
+
+                    buf.resize(sub_chunk_len as usize, 0u8);
+                    reader.read_exact(&mut buf)?;
+
+                    let cmd_cnt = u16::from_be_bytes([buf[0], buf[1]]);
+                    if cmd_cnt < 2 {
+                        return Err(Error::new(
+                            ErrorKind::BrokenFile,
+                            format!("error in VDAT, cmd_cnt < 2: {cmd_cnt}")
+                        ));
+                    }
+                    let mut data_offset = cmd_cnt as usize;
+
+                    decompr.clear();
+                    let mut cmd_index = 2 as usize;
+                    while cmd_index < cmd_cnt as usize {
+                        let cmd = buf[cmd_index] as i8;
+                        cmd_index += 1;
+
+                        if cmd == 0 { // load count from data, COPY
+                            let count = u16::from_be_bytes([buf[data_offset], buf[data_offset + 1]]);
+
+                            data_offset += 2;
+                            let next_offset = data_offset + count as usize * 2;
+                            decompr.extend_from_slice(&buf[data_offset..next_offset]);
+                            data_offset = next_offset;
+                        } else if cmd == 1 { // load count from data, RLE
+                            let count = u16::from_be_bytes([buf[data_offset], buf[data_offset + 1]]);
+
+                            data_offset += 2;
+                            let data = &buf[data_offset..(data_offset + 2)];
+                            data_offset += 2;
+                            for _ in 0..count {
+                                decompr.extend_from_slice(data);
+                            }
+                        } else if cmd < 0 { // count = -cmd, COPY
+                            let count = -(cmd as i32);
+
+                            let next_offset = data_offset + count as usize * 2;
+                            decompr.extend_from_slice(&buf[data_offset..next_offset]);
+                            data_offset = next_offset;
+                        } else { // cmd > 1: count = cmd, RLE
+                            let count = cmd;
+
+                            let data = &buf[data_offset..(data_offset + 2)];
+                            data_offset += 2;
+                            for _ in 0..count {
+                                decompr.extend_from_slice(data);
+                            }
+                        }
+                        if data_offset >= buf.len() {
+                            break;
+                        }
+                    }
+
+                    for (byte_index, value) in decompr.iter().cloned().enumerate() {
+                        let word_index = byte_index / 2;
+                        let x = (word_index / height) * 16 + 8 * (byte_index & 1);
+                        let y = word_index % height;
+
+                        for bit in 0..8 {
+                            let pixel_index = y * width + x + bit;
+                            if pixel_index >= pixels.len() {
+                                break;
+                            }
+                            pixels[pixel_index] |= ((value >> (7 - bit)) & 1) << plane_index;
+                        }
+                    }
+                }
+
+                if read_len < chunk_len as usize {
+                    // eprintln!("skipping {} byte(s) at end of body", (chunk_len as usize - read_len));
                     reader.seek_relative((chunk_len as usize - read_len) as i64)?;
                 }
             }
@@ -889,6 +1015,14 @@ pub fn read_u8(reader: &mut impl Read) -> Result<u8> {
     reader.read_exact(unsafe { buf.assume_init_mut() })?;
     let buf = unsafe { buf.assume_init_ref() };
     Ok(buf[0])
+}
+
+#[inline]
+pub fn read_i8(reader: &mut impl Read) -> Result<i8> {
+    let mut buf = MaybeUninit::<[u8; 1]>::uninit();
+    reader.read_exact(unsafe { buf.assume_init_mut() })?;
+    let buf = unsafe { buf.assume_init_ref() };
+    Ok(i8::from_be_bytes(*buf))
 }
 
 #[inline]
