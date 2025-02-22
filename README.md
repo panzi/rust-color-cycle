@@ -67,10 +67,12 @@ Options:
 | `0` | Open last file |
 | `+` | Increase frames per second by 1 |
 | `-` | Decrease frames per second by 1 |
-| `W` | Toogle fast forward (10000x speed). |
-| `A` | Go back in time by 5 minutes. |
-| `D` | Go forward in time by 5 minutes. |
-| `S` | Go to current time and continue normal progression. |
+| `W` | Toogle fast forward (10000x speed) |
+| `A` | Go back in time by 5 minutes |
+| `Shift`+`A` | Go back in time by 1 minute |
+| `D` | Go forward in time by 5 minutes |
+| `Shift`+`D` | Go forward in time by 1 minute |
+| `S` | Go to current time and continue normal progression |
 | `I` | Reverse pixels in columns of 8.<br>This is a hack fix for images that appear to be broken like that. |
 | `Cursor Up` | Move view-port up by 1 pixel |
 | `Cursor Down` | Move view-port down by 1 pixel |

@@ -42,7 +42,8 @@ use libc;
 use palette::Palette;
 
 const MAX_FPS: u32 = 10_000;
-const TIME_STEP: u64 = 60 * 5 * 1000;
+const TIME_STEP: u64 = 5 * 60 * 1000;
+const SMALL_TIME_STEP: u64 = 60 * 1000;
 const DAY_DURATION: u64 = 24 * 60 * 60 * 1000;
 const FAST_FORWARD_SPEED: u64 = 10_000;
 
@@ -272,10 +273,12 @@ P              Open previous file
 0              Open last file
 +              Increase frames per second by 1
 -              Decrease frames per second by 1
-W              Toogle fast forward ({FAST_FORWARD_SPEED}x speed).
-A              Go back in time by 5 minutes.
-D              Go forward in time by 5 minutes.
-S              Go to current time and continue normal progression.
+W              Toogle fast forward ({FAST_FORWARD_SPEED}x speed)
+A              Go back in time by 5 minutes
+Shift+A        Go back in time by 1 minute
+D              Go forward in time by 5 minutes
+Shift+D        Go forward in time by 1 minute
+S              Go to current time and continue normal progression
 I              Reverse pixels in columns of 8.
                This is a hack fix for images that appear to be
                broken like that.
@@ -559,15 +562,17 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
 
         loop {
             // TODO: Windows support, maybe with ReadConsoleInput()?
-            match nb_read_byte(&mut state.stdin)? {
-                None => break,
-                Some(b'q') => return Ok(Action::Quit),
-                Some(b'b') => {
+            let Some(byte) = nb_read_byte(&mut state.stdin)? else {
+                break;
+            };
+            match byte {
+                b'q' => return Ok(Action::Quit),
+                b'b' => {
                     args.blend = !args.blend;
 
                     show_message!("Blend Mode: {}", if args.blend { "Enabled" } else { "Disabled" });
                 }
-                Some(b'o') => {
+                b'o' => {
                     if args.osd {
                         show_message!("OSD: Disabled");
                         args.osd = false;
@@ -576,7 +581,7 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                         show_message!("OSD: Enabled");
                     }
                 }
-                Some(b'+') => {
+                b'+' => {
                     if args.fps < MAX_FPS {
                         args.fps += 1;
                         frame_duration = Duration::from_secs_f64(1.0 / args.fps as f64);
@@ -584,7 +589,7 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                         show_message!("FPS: {}", args.fps);
                     }
                 }
-                Some(b'-') => {
+                b'-' => {
                     if args.fps > 1 {
                         args.fps -= 1;
                         frame_duration = Duration::from_secs_f64(1.0 / args.fps as f64);
@@ -592,7 +597,7 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                         show_message!("FPS: {}", args.fps);
                     }
                 }
-                Some(b'n') => {
+                b'n' => {
                     let new_index = file_index + 1;
                     if new_index >= args.paths.len() {
                         show_message!("Already at last file.");
@@ -600,21 +605,22 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                         return Ok(Action::Goto(new_index));
                     }
                 }
-                Some(b'p') => {
+                b'p' => {
                     if file_index == 0 {
                         show_message!("Already at first file.");
                     } else {
                         return Ok(Action::Goto(file_index - 1));
                     }
                 }
-                Some(b'a') => {
-                    let rem = time_of_day % TIME_STEP;
+                b'a' | b'A' => {
+                    let time_step = if byte.is_ascii_uppercase() { SMALL_TIME_STEP } else { TIME_STEP };
+                    let rem = time_of_day % time_step;
                     let new_time = time_of_day - rem;
                     if new_time == time_of_day {
-                        if new_time < TIME_STEP {
-                            time_of_day = DAY_DURATION - TIME_STEP;
+                        if new_time < time_step {
+                            time_of_day = DAY_DURATION - time_step;
                         } else {
-                            time_of_day = new_time - TIME_STEP;
+                            time_of_day = new_time - time_step;
                         }
                     } else {
                         time_of_day = new_time;
@@ -624,9 +630,10 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                     let (hours, mins) = get_hours_mins(time_of_day);
                     show_message!("{hours}:{mins:02}");
                 }
-                Some(b'd') => {
-                    let rem = time_of_day % TIME_STEP;
-                    let new_time = time_of_day - rem + TIME_STEP;
+                b'd' | b'D' => {
+                    let time_step = if byte.is_ascii_uppercase() { SMALL_TIME_STEP } else { TIME_STEP };
+                    let rem = time_of_day % time_step;
+                    let new_time = time_of_day - rem + time_step;
                     if new_time >= DAY_DURATION {
                         time_of_day = 0;
                     } else {
@@ -637,14 +644,14 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                     let (hours, mins) = get_hours_mins(time_of_day);
                     show_message!("{hours}:{mins:02}");
                 }
-                Some(b's') => {
+                b's' => {
                     state.time_speed = 1;
                     state.current_time = None;
                     time_of_day = get_time_of_day_msec(state.time_speed);
                     let (hours, mins) = get_hours_mins(time_of_day);
                     show_message!("{hours}:{mins:02}");
                 }
-                Some(b'w') => {
+                b'w' => {
                     if state.time_speed == 1 {
                         state.time_speed = FAST_FORWARD_SPEED;
                         state.current_time = None;
@@ -656,11 +663,11 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                         show_message!("Fast Forward: OFF");
                     }
                 }
-                Some(b'i') => {
+                b'i' => {
                     living_world.column_swap();
                     viewport.get_rect_from(x, y, term_width, term_height, living_world.base());
                 }
-                Some(0x1b) => {
+                0x1b => {
                     match nb_read_byte(&mut state.stdin)? {
                         None => return Ok(Action::Quit),
                         Some(0x1b) => return Ok(Action::Quit),
@@ -833,14 +840,14 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                         _ => {}
                     }
                 }
-                Some(b'0') => {
+                b'0' => {
                     return Ok(Action::Goto(args.paths.len() - 1));
                 }
-                Some(b'1') => {
+                b'1' => {
                     return Ok(Action::Goto(0));
                 }
-                Some(b) if b >= b'2' && b <= b'9' => {
-                    let index = (b - b'1') as usize;
+                _ if byte >= b'2' && byte <= b'9' => {
+                    let index = (byte - b'1') as usize;
                     if index >= args.paths.len() {
                         show_message!("Only {} files opened!", args.paths.len());
                     } else {
