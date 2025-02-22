@@ -19,7 +19,7 @@ use std::fmt::Display;
 #[derive(Debug)]
 pub struct Error {
     message: String,
-    cause: Option<Box<dyn std::error::Error>>,
+    source: Option<Box<dyn std::error::Error>>,
 }
 
 impl Error {
@@ -27,15 +27,15 @@ impl Error {
     where S: Into<String> {
         Self {
             message: message.into(),
-            cause: None,
+            source: None,
         }
     }
 
-    pub fn with_cause<S>(message: S, cause: Box<dyn std::error::Error>) -> Self
+    pub fn with_cause<S>(message: S, source: Box<dyn std::error::Error>) -> Self
     where S: Into<String> {
         Self {
             message: message.into(),
-            cause: Some(cause),
+            source: Some(source),
         }
     }
 }
@@ -43,8 +43,8 @@ impl Error {
 impl Display for Error {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(cause) = &self.cause {
-            write!(f, "{}: {cause}", self.message)
+        if let Some(source) = &self.source {
+            write!(f, "{}: {source}", self.message)
         } else {
             self.message.fmt(f)
         }
@@ -53,8 +53,8 @@ impl Display for Error {
 
 impl std::error::Error for Error {
     #[inline]
-    fn cause(&self) -> Option<&dyn std::error::Error> {
-        self.cause.as_deref()
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.source.as_deref()
     }
 }
 
