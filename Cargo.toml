@@ -3,7 +3,7 @@ name = "color-cycle"
 authors = ["Mathias Panzenböck"]
 description = "Render color cycle images on the terminal."
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/panzi/rust-color-cycle/"
 license = "GPL-3.0"
 
