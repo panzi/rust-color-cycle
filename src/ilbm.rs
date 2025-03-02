@@ -107,9 +107,8 @@ pub struct BMHD {
     x_aspect: u8,
     y_aspect: u8,
     page_width: i16,
-    page_heigth: i16,
+    page_height: i16,
 }
-
 
 impl BMHD {
     pub const SIZE: u32 = 20;
@@ -175,8 +174,8 @@ impl BMHD {
     }
 
     #[inline]
-    pub fn page_heigth(&self) -> i16 {
-        self.page_heigth
+    pub fn page_height(&self) -> i16 {
+        self.page_height
     }
 
     pub fn read<R>(reader: &mut R, chunk_len: u32) -> Result<Self>
@@ -198,7 +197,7 @@ impl BMHD {
         let x_aspect = read_u8(reader)?;
         let y_aspect = read_u8(reader)?;
         let page_width = read_i16be(reader)?;
-        let page_heigth = read_i16be(reader)?;
+        let page_height = read_i16be(reader)?;
 
         if chunk_len > Self::SIZE {
             // eprintln!("{} unknown bytes in header", (chunk_len - Self::SIZE));
@@ -218,7 +217,7 @@ impl BMHD {
             x_aspect,
             y_aspect,
             page_width,
-            page_heigth,
+            page_height,
         })
     }
 }
@@ -916,7 +915,7 @@ impl CCRT {
     where R: Read + Seek {
         if chunk_len < Self::SIZE {
             return Err(Error::new(ErrorKind::BrokenFile,
-                format!("truncated CRNG chunk: {} < {}", chunk_len, Self::SIZE)));
+                format!("truncated CCRT chunk: {} < {}", chunk_len, Self::SIZE)));
         }
 
         let direction = read_i16be(reader)?;
@@ -972,18 +971,27 @@ impl TryFrom<ILBM> for CycleImage {
         };
 
         for crng in ilbm.crngs() {
-            if crng.flags() & 1 != 0 {
-                cycles.push(Cycle::new(
-                    crng.low(),
-                    crng.high(),
-                    crng.rate() as u32,
-                    crng.flags() & 2 != 0
-                ));
+            if crng.low() < crng.high() && crng.rate() > 0 {
+                let flags = crng.flags();
+                if flags & 1 != 0 {
+                    if flags > 3 {
+                        eprintln!("Warning: Unsupported CRNG flags: {crng:?}");
+                    }
+
+                    cycles.push(Cycle::new(
+                        crng.low(),
+                        crng.high(),
+                        crng.rate().into(),
+                        flags & 2 != 0
+                    ));
+                } else if flags != 0 {
+                    eprintln!("Warning: Unsupported CRNG flags: {crng:?}");
+                }
             }
         }
 
         for ccrt in ilbm.ccrts() {
-            if ccrt.direction() != 0 {
+            if ccrt.direction() != 0 && ccrt.low() < ccrt.high() {
                 let usec = ccrt.delay_sec() as u64 * 1000_000 + ccrt.delay_usec() as u64;
 
                 // 1s / 60 = 16384x
@@ -992,16 +1000,25 @@ impl TryFrom<ILBM> for CycleImage {
                 // 16384s / 60 = 1x
 
                 // Is this correct?
-                // See: https://moddingwiki.shikadi.net/wiki/LBM_Format#CRNG:_Colour_range
+                // See: https://moddingwiki.shikadi.net/wiki/LBM_Format#CCRT:_Colour_cycling
 
-                let rate = usec * 16384 / (60 * 1000_000);
+                // XXX: This is just a value I've came up with so I get the same rate in NightFlight.iff as in NightFlight.ilbm
+                //      No idea if this is any correct? Also had to reverse the direction than what I thought it should be.
+                let rate = usec * 8903 / 1000_000;
+                //eprintln!("sec: {}, usec: {} -> rate: {}", ccrt.delay_sec(), ccrt.delay_usec(), rate);
 
-                cycles.push(Cycle::new(
-                    ccrt.low(),
-                    ccrt.high(),
-                    rate as u32,
-                    ccrt.direction() == -1,
-                ));
+                if ccrt.direction() < -1 || ccrt.direction() > 1 {
+                    eprintln!("Warning: Unsupported CCRT direction: {ccrt:?}");
+                }
+
+                if rate > 0 {
+                    cycles.push(Cycle::new(
+                        ccrt.low(),
+                        ccrt.high(),
+                        rate as u32,
+                        ccrt.direction() == 1,
+                    ));
+                }
             }
         }
 

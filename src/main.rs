@@ -669,11 +669,11 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                 }
                 0x1b => {
                     match nb_read_byte(&mut state.stdin)? {
-                        None => return Ok(Action::Quit),
+                        Option::None => return Ok(Action::Quit),
                         Some(0x1b) => return Ok(Action::Quit),
                         Some(b'[') => {
                             match nb_read_byte(&mut state.stdin)? {
-                                None => break,
+                                Option::None => break,
                                 Some(b'A') => {
                                     // Up
                                     if img_height > term_height && y > 0 {
@@ -712,7 +712,7 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                                 }
                                 Some(b'1') => {
                                     match nb_read_byte(&mut state.stdin)? {
-                                        None => break,
+                                        Option::None => break,
                                         Some(b';') => {
                                             match nb_read_byte(&mut state.stdin)? {
                                                 None => break,
@@ -742,7 +742,7 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                                 }
                                 Some(b'5') => {
                                     match nb_read_byte(&mut state.stdin)? {
-                                        None => break,
+                                        Option::None => break,
                                         Some(b'~') => {
                                             // Page Up
                                             if img_height > term_height {
@@ -756,10 +756,10 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                                         }
                                         Some(b';') => {
                                             match nb_read_byte(&mut state.stdin)? {
-                                                None => break,
+                                                Option::None => break,
                                                 Some(b'3') => {
                                                     match nb_read_byte(&mut state.stdin)? {
-                                                        None => break,
+                                                        Option::None => break,
                                                         Some(b'~') => {
                                                             // Alt+Page Up
                                                             if img_width > term_width {
@@ -782,7 +782,7 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                                 }
                                 Some(b'6') => {
                                     match nb_read_byte(&mut state.stdin)? {
-                                        None => break,
+                                        Option::None => break,
                                         Some(b'~') => {
                                             // Page Down
                                             if img_height > term_height {
@@ -796,10 +796,10 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                                         }
                                         Some(b';') => {
                                             match nb_read_byte(&mut state.stdin)? {
-                                                None => break,
+                                                Option::None => break,
                                                 Some(b'3') => {
                                                     match nb_read_byte(&mut state.stdin)? {
-                                                        None => break,
+                                                        Option::None => break,
                                                         Some(b'~') => {
                                                             // Alt+Page Down
                                                             if img_width > term_width {
