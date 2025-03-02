@@ -631,7 +631,7 @@ impl BODY {
             }
             2 => {
                 // VDAT compression
-                // TODO: https://www.atari-wiki.com/index.php?title=IFF_file_format
+                // See: https://www.atari-wiki.com/index.php?title=IFF_file_format
                 let width  = header.width()  as usize;
                 let height = header.height() as usize;
 
@@ -640,8 +640,7 @@ impl BODY {
                 let mut fourcc = [0u8; 4];
                 let mut read_len = 0usize;
                 let mut buf = Vec::new();
-                let mut decompr = Vec::with_capacity((header.width() as usize * header.height() as usize + 7) / 8);
-
+                let mut decompr = Vec::with_capacity((width * height + 7) / 8);
 
                 for plane_index in 0..num_planes {
                     reader.read_exact(&mut fourcc)?;
@@ -678,10 +677,8 @@ impl BODY {
                     let mut data_offset = cmd_cnt as usize;
 
                     decompr.clear();
-                    let mut cmd_index = 2 as usize;
-                    while cmd_index < cmd_cnt as usize {
-                        let cmd = buf[cmd_index] as i8;
-                        cmd_index += 1;
+                    for cmd in &buf[2..cmd_cnt as usize] {
+                        let cmd = *cmd as i8;
 
                         if cmd == 0 { // load count from data, COPY
                             let count = u16::from_be_bytes([buf[data_offset], buf[data_offset + 1]]);
