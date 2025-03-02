@@ -477,7 +477,7 @@ impl BODY {
         let mut line = vec![0u8; line_len].into_boxed_slice();
 
         let data_len = header.height() as usize * line_len;
-        let mut pixels = Vec::with_capacity(header.width() as usize * header.height() as usize * num_planes);
+        let mut pixels = Vec::with_capacity(header.width() as usize * header.height() as usize * ((num_planes + 7) / 8));
         let mut mask = if header.mask() == 1 {
             Some(BitVec::with_capacity(header.width() as usize * header.height() as usize))
         } else {
