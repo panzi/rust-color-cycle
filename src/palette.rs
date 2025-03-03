@@ -131,10 +131,11 @@ impl Palette {
                     dest[dest_index as usize] = crate::color::blend(src[src_index1 as usize], src[src_index2 as usize], mid);
                 }
             } else {
+                let inv = 1.0 - mid;
                 for src_index1 in 0..size {
                     let dest_index = (src_index1 + distance) % size;
                     let src_index2 = (src_index1 + 1) % size;
-                    dest[dest_index as usize] = crate::color::blend(src[src_index1 as usize], src[src_index2 as usize], 1.0 - mid);
+                    dest[dest_index as usize] = crate::color::blend(src[src_index1 as usize], src[src_index2 as usize], inv);
                 }
             }
         }
@@ -151,7 +152,7 @@ impl Palette {
 
         if blend {
             for cycle in cycles {
-                self.apply_cycle_blended(&palette, cycle, now);
+                self.apply_cycle_blended(palette, cycle, now);
             }
         } else {
             self.apply_cycles(cycles, now);
