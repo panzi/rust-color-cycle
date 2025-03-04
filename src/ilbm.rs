@@ -1013,7 +1013,7 @@ impl TryFrom<ILBM> for CycleImage {
                         ccrt.low(),
                         ccrt.high(),
                         rate as u32,
-                        ccrt.direction() == 1,
+                        ccrt.direction() > 0,
                     ));
                 }
             }
