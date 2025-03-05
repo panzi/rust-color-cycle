@@ -418,8 +418,8 @@ impl ILBM {
                 };
 
                 let colors = cmap.colors_mut();
-                while colors.len() < 64 {
-                    colors.push(Rgb([0, 0, 0]));
+                if colors.len() < 64 {
+                    colors.resize(64, Rgb([0, 0, 0]));
                 }
 
                 for index in 32..64 {
