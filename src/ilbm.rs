@@ -244,7 +244,7 @@ pub struct ILBM {
     header: BMHD,
     camg: Option<CAMG>,
     body: Option<BODY>,
-    cmaps: Vec<CMAP>,
+    cmap: Option<CMAP>,
     crngs: Vec<CRNG>,
     ccrts: Vec<CCRT>,
 }
@@ -273,8 +273,8 @@ impl ILBM {
     }
 
     #[inline]
-    pub fn cmaps(&self) -> &[CMAP] {
-        &self.cmaps
+    pub fn cmap(&self) -> Option<&CMAP> {
+        self.cmap.as_ref()
     }
 
     #[inline]
@@ -349,7 +349,7 @@ impl ILBM {
 
         let mut header = None;
         let mut body = None;
-        let mut cmaps = Vec::new();
+        let mut cmap = None;
         let mut crngs = Vec::new();
         let mut ccrts = Vec::new();
         let mut camg = None;
@@ -374,7 +374,7 @@ impl ILBM {
                     body = Some(BODY::read(reader, chunk_len, file_type, header)?);
                 }
                 b"CMAP" => {
-                    cmaps.push(CMAP::read(reader, chunk_len)?);
+                    cmap = Some(CMAP::read(reader, chunk_len)?);
                 }
                 b"CRNG" => {
                     crngs.push(CRNG::read(reader, chunk_len)?);
@@ -407,12 +407,34 @@ impl ILBM {
             return Err(Error::new(ErrorKind::BrokenFile, "BMHD chunk missing"));
         };
 
+        if let Some(camg) = &camg {
+            if camg.viewport_mode() & CAMG::EHB != 0 {
+                // extra half-bright
+                let cmap = if let Some(cmap) = &mut cmap {
+                    cmap
+                } else {
+                    cmap = Some(CMAP::new());
+                    cmap.as_mut().unwrap()
+                };
+
+                let colors = cmap.colors_mut();
+                while colors.len() < 64 {
+                    colors.push(Rgb([0, 0, 0]));
+                }
+
+                for index in 32..64 {
+                    let Rgb([r, g, b]) = colors[index - 32];
+                    colors[index] = Rgb([r >> 1, g >> 1, b >> 1]);
+                }
+            }
+        }
+
         Ok(Self {
             file_type,
             header,
             camg,
             body,
-            cmaps,
+            cmap,
             crngs,
             ccrts,
         })
@@ -761,6 +783,16 @@ impl CMAP {
         &self.colors
     }
 
+    #[inline]
+    pub fn colors_mut(&mut self) -> &mut Vec<Rgb> {
+        &mut self.colors
+    }
+
+    #[inline]
+    pub fn new() -> Self {
+        Self { colors: Vec::new() }
+    }
+
     pub fn read<R>(reader: &mut R, chunk_len: u32) -> Result<Self>
     where R: Read + Seek {
         let num_colors = chunk_len / 3;
@@ -789,6 +821,8 @@ pub struct CAMG {
 
 impl CAMG {
     pub const SIZE: u32 = 4;
+    pub const HAM: u32 = 0x800;
+    pub const EHB: u32 = 0x80;
 
     #[inline]
     pub fn viewport_mode(&self) -> u32 {
@@ -951,7 +985,7 @@ impl TryFrom<ILBM> for CycleImage {
         let height = header.height() as u32;
         let mut cycles = Vec::with_capacity(ilbm.ccrts().len() + ilbm.crngs().len());
         let body = ilbm.body();
-        let palette = if let Some(cmap) = ilbm.cmaps().first() {
+        let palette = if let Some(cmap) = ilbm.cmap() {
             cmap.colors().into()
         } else {
             Palette::default()
