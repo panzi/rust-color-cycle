@@ -67,7 +67,7 @@ impl CycleImage {
 
     #[inline]
     pub fn palette(&self) -> &Palette {
-        &self.indexed_image.palette()
+        self.indexed_image.palette()
     }
 
     #[inline]

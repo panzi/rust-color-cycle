@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#![allow(clippy::manual_range_contains)]
+
 pub mod image_to_ansi;
 pub mod color;
 pub mod image;
@@ -37,8 +39,6 @@ use clap::Parser;
 use image::{CycleImage, IndexedImage, LivingWorld, RgbImage};
 use image_to_ansi::{image_to_ansi_into, simple_image_to_ansi_into};
 
-#[cfg(not(windows))]
-use libc;
 use palette::Palette;
 
 const MAX_FPS: u32 = 10_000;
@@ -152,13 +152,13 @@ fn interruptable_sleep(duration: Duration) -> bool {
             tv_nsec: duration.subsec_nanos() as i64,
         };
         let ret = unsafe { libc::nanosleep(&req, std::ptr::null_mut()) };
-        return ret == 0;
+        ret == 0
     }
 
     #[cfg(not(unix))]
     {
         std::thread::sleep(duration);
-        return true;
+        true
     }
 }
 
@@ -878,7 +878,7 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                         let _ = write!(state.stdout, "\x1B[{};1H\x1B[1J", viewport_row);
                     }
 
-                    let viewport_rows = (viewport.height() + 1) / 2;
+                    let viewport_rows = viewport.height().div_ceil(2);
                     let viewport_end_row = viewport_row + viewport_rows;
                     if viewport_x > 0 {
                         let column = viewport_column - 1;
@@ -894,7 +894,7 @@ fn show_image(args: &mut Args, state: &mut GlobalState, file_index: usize) -> Re
                         }
                     }
 
-                    if (viewport_y + viewport.height() + 1) / 2 < term_height / 2 {
+                    if (viewport_y + viewport.height()).div_ceil(2) < term_height / 2 {
                         let _ = write!(state.stdout, "\x1B[{};1H\x1B[0J", viewport_end_row);
                     }
                 }

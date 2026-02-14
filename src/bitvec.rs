@@ -30,7 +30,7 @@ impl BitVec {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             len: 0,
-            bits: Vec::with_capacity((capacity + 7) / 8),
+            bits: Vec::with_capacity(capacity.div_ceil(8)),
         }
     }
 
@@ -80,7 +80,7 @@ impl BitVec {
 
     #[inline]
     pub fn push(&mut self, value: bool) {
-        if self.len % 8 == 0 {
+        if self.len.is_multiple_of(8) {
             self.bits.push(value as u8);
         } else {
             self.set_unchecked(self.len, value);
@@ -120,7 +120,7 @@ impl BitVec {
     pub fn truncate(&mut self, len: usize) {
         if len < self.len {
             self.len = len;
-            self.bits.truncate((len + 7) / 8);
+            self.bits.truncate(len.div_ceil(8));
         }
     }
 
@@ -159,7 +159,7 @@ impl BitVec {
     }
 
     #[inline]
-    pub fn iter(&self) -> BitVecIter {
+    pub fn iter(&self) -> BitVecIter<'_> {
         BitVecIter { index: 0, bitvec: self }
     }
 }

@@ -66,7 +66,7 @@ impl From<[Rgb; 256]> for Palette {
 impl From<&[Rgb; 256]> for Palette {
     #[inline]
     fn from(value: &[Rgb; 256]) -> Self {
-        Self(Box::new(value.clone()))
+        Self(Box::new(*value))
     }
 }
 
@@ -148,7 +148,7 @@ impl Palette {
     }
 
     pub fn apply_cycles_from(&mut self, palette: &Palette, cycles: &[Cycle], now: f64, blend: bool) {
-        self.clone_from(&palette);
+        self.clone_from(palette);
 
         if blend {
             for cycle in cycles {

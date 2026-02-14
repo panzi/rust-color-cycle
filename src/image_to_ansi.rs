@@ -74,7 +74,7 @@ pub fn image_to_ansi_into(prev_frame: &RgbImage, image: &RgbImage, full_width: b
         panic!("prev_frame.height() < image.height(): {:?} < {:?}", prev_frame.height(), image.height());
     }
 
-    let row_count = (image.height() + 1) / 2;
+    let row_count = image.height().div_ceil(2);
 
     lines.clear();
 
@@ -101,7 +101,7 @@ pub fn image_to_ansi_into(prev_frame: &RgbImage, image: &RgbImage, full_width: b
                     move_cursor(curr_x, curr_line_y, x, line_y, lines);
                     let Rgb([r, g, b]) = color;
                     if !line_start && color == prev_color {
-                        lines.push_str("▀");
+                        lines.push('▀');
                     } else {
                         let _ = write!(lines, "\x1B[38;2;{r};{g};{b}m▀");
                         line_start = false;
@@ -197,7 +197,7 @@ pub fn image_to_ansi_into(prev_frame: &RgbImage, image: &RgbImage, full_width: b
 }
 
 pub fn simple_image_to_ansi_into(image: &RgbImage, lines: &mut String) {
-    let row_count = (image.height() + 1) / 2;
+    let row_count = image.height().div_ceil(2);
 
     lines.clear();
 
@@ -221,7 +221,7 @@ pub fn simple_image_to_ansi_into(image: &RgbImage, lines: &mut String) {
                 let color = image.get_pixel(x, y);
                 let Rgb([r, g, b]) = color;
                 if x > 0 && color == prev_color {
-                    lines.push_str("▀");
+                    lines.push('▀');
                 } else {
                     let _ = write!(lines, "\x1B[38;2;{r};{g};{b}m▀");
                 }

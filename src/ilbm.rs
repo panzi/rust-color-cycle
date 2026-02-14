@@ -332,20 +332,19 @@ impl ILBM {
             return Err(Error::new(ErrorKind::UnsupportedFileFormat, "file too short"));
         }
 
-        let file_type;
         reader.read_exact(&mut fourcc)?;
-        match &fourcc {
+        let file_type = match &fourcc {
             b"ILBM" => {
-                file_type = FileType::ILBM;
+                FileType::ILBM
             }
             b"PBM " => {
-                file_type = FileType::PBM;
+                FileType::PBM
             }
             _ => {
                 return Err(Error::new(ErrorKind::UnsupportedFileFormat,
                     format!("unsupported file format: {:?} {:?}", &fourcc, String::from_utf8_lossy(&fourcc))));
             }
-        }
+        };
 
         let mut header = None;
         let mut body = None;
@@ -407,25 +406,23 @@ impl ILBM {
             return Err(Error::new(ErrorKind::BrokenFile, "BMHD chunk missing"));
         };
 
-        if let Some(camg) = &camg {
-            if camg.viewport_mode() & CAMG::EHB != 0 {
-                // extra half-bright
-                let cmap = if let Some(cmap) = &mut cmap {
-                    cmap
-                } else {
-                    cmap = Some(CMAP::new());
-                    cmap.as_mut().unwrap()
-                };
+        if let Some(camg) = &camg && camg.viewport_mode() & CAMG::EHB != 0 {
+            // extra half-bright
+            let cmap = if let Some(cmap) = &mut cmap {
+                cmap
+            } else {
+                cmap = Some(CMAP::new());
+                cmap.as_mut().unwrap()
+            };
 
-                let colors = cmap.colors_mut();
-                if colors.len() < 64 {
-                    colors.resize(64, Rgb([0, 0, 0]));
-                }
+            let colors = cmap.colors_mut();
+            if colors.len() < 64 {
+                colors.resize(64, Rgb([0, 0, 0]));
+            }
 
-                for index in 32..64 {
-                    let Rgb([r, g, b]) = colors[index - 32];
-                    colors[index] = Rgb([r >> 1, g >> 1, b >> 1]);
-                }
+            for index in 32..64 {
+                let Rgb([r, g, b]) = colors[index - 32];
+                colors[index] = Rgb([r >> 1, g >> 1, b >> 1]);
             }
         }
 
@@ -491,7 +488,7 @@ impl BODY {
             }
         }
         // eprintln!("file_type: {file_type}, header: {:?}", header);
-        let plane_len = (header.width() as usize + 15) / 16 * 2;
+        let plane_len = (header.width() as usize).div_ceil(16) * 2;
         let mut line_len = num_planes * plane_len;
         if header.mask() == 1 {
             line_len += plane_len;
@@ -499,7 +496,7 @@ impl BODY {
         let mut line = vec![0u8; line_len].into_boxed_slice();
 
         let data_len = header.height() as usize * line_len;
-        let mut pixels = Vec::with_capacity(header.width() as usize * header.height() as usize * ((num_planes + 7) / 8));
+        let mut pixels = Vec::with_capacity(header.width() as usize * header.height() as usize * num_planes.div_ceil(8));
         let mut mask = if header.mask() == 1 {
             Some(BitVec::with_capacity(header.width() as usize * header.height() as usize))
         } else {
@@ -662,7 +659,7 @@ impl BODY {
                 let mut fourcc = [0u8; 4];
                 let mut read_len = 0usize;
                 let mut buf = Vec::new();
-                let mut decompr = Vec::with_capacity((width * height + 7) / 8);
+                let mut decompr = Vec::with_capacity((width * height).div_ceil(8));
 
                 for plane_index in 0..num_planes {
                     reader.read_exact(&mut fourcc)?;
@@ -772,7 +769,7 @@ impl BODY {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CMAP {
     colors: Vec<Rgb>,
 }
@@ -800,7 +797,7 @@ impl CMAP {
         let mut buf = [0u8; 3];
         for _ in 0..num_colors {
             reader.read_exact(&mut buf)?;
-            colors.push(Rgb(buf.clone()));
+            colors.push(Rgb(buf));
         }
 
         let padding = chunk_len - num_colors * 3;
@@ -1023,10 +1020,10 @@ impl TryFrom<ILBM> for CycleImage {
 
         for ccrt in ilbm.ccrts() {
             if ccrt.direction() != 0 && ccrt.low() < ccrt.high() {
-                let usec = ccrt.delay_sec() as u64 * 1000_000 + ccrt.delay_usec() as u64;
+                let usec = ccrt.delay_sec() as u64 * 1_000_000 + ccrt.delay_usec() as u64;
 
                 // 1s / 60 = 16384x
-                // 1s * 1000_000 = ?x
+                // 1s * 1_000_000 = ?x
 
                 // 16384s / 60 = 1x
 
@@ -1035,7 +1032,7 @@ impl TryFrom<ILBM> for CycleImage {
 
                 // XXX: This is just a value I've came up with so I get the same rate in NightFlight.iff as in NightFlight.ilbm
                 //      No idea if this is any correct? Also had to reverse the direction than what I thought it should be.
-                let rate = usec * 8903 / 1000_000;
+                let rate = usec * 8903 / 1_000_000;
                 //eprintln!("sec: {}, usec: {} -> rate: {}", ccrt.delay_sec(), ccrt.delay_usec(), rate);
 
                 if ccrt.direction() < -1 || ccrt.direction() > 1 {
